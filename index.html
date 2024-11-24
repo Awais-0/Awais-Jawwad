@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Player with Subtitles</title>
+    <style>
+        body {
+            text-align: center;
+        }
+        #audioPlayer {
+            display: none; /* Hide the audio player */
+        }
+        #subtitles {
+            margin-top: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 20px;
+            padding: 5px;
+            white-space: nowrap;
+            display: none;
+            max-width: 80%;
+            margin: 0 auto;
+        }
+        .control-buttons {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <audio id="audioPlayer">
+        <source src="final_conversation.wav" type="audio/mp3">
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="subtitles"></div> 
+
+    <div class="control-buttons">
+        <button id="playPauseButton">Play</button>
+        <button id="resetButton">Reset</button>
+    </div>
+
+    <script>
+        fetch('output_transcription1.json')  
+            .then(response => response.json())
+            .then(data => {
+                const audioPlayer = document.getElementById('audioPlayer');
+                const subtitleDisplay = document.getElementById('subtitles');
+                const playPauseButton = document.getElementById('playPauseButton');
+                const resetButton = document.getElementById('resetButton');
+
+                if (!data.segments || data.segments.length === 0) {
+                    console.error('No segments found!');
+                    return;
+                }
+
+                let currentSegmentIndex = 0;
+                let currentWordIndex = 0;
+                const segments = data.segments;
+
+                function resetSubtitles() {
+                    subtitleDisplay.innerText = '';
+                    subtitleDisplay.style.display = 'none';
+                    currentSegmentIndex = 0;
+                    currentWordIndex = 0;
+                }
+
+                function updateSubtitles() {
+                    const currentTime = audioPlayer.currentTime;
+
+                    if (currentSegmentIndex < segments.length) {
+                        const segment = segments[currentSegmentIndex];
+
+                        if (currentWordIndex < segment.words.length) {
+                            const word = segment.words[currentWordIndex];
+
+                            if (currentTime >= word.start_time && currentTime <= word.end_time) {
+                                subtitleDisplay.innerText += word.word + " ";
+                                subtitleDisplay.style.display = 'block';
+                                currentWordIndex++;
+                            }
+                        }
+
+                        if (currentTime > segment.end_time) {
+                            currentSegmentIndex++;
+                            currentWordIndex = 0;
+                            subtitleDisplay.innerText = '';
+                        }
+                    } else {
+                        subtitleDisplay.style.display = 'none';
+                    }
+                }
+
+                let intervalId = null;
+
+                // Play/Pause Button Logic
+                playPauseButton.addEventListener('click', () => {
+                    if (audioPlayer.paused) {
+                        audioPlayer.play();
+                        playPauseButton.innerText = "Pause";
+                        if (!intervalId) {
+                            intervalId = setInterval(updateSubtitles, 100);
+                        }
+                    } else {
+                        audioPlayer.pause();
+                        playPauseButton.innerText = "Play";
+                        clearInterval(intervalId);
+                        intervalId = null;
+                    }
+                });
+
+                // Reset Button Logic
+                resetButton.addEventListener('click', () => {
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
+                    playPauseButton.innerText = "Play";
+                    resetSubtitles();
+                    clearInterval(intervalId);
+                    intervalId = null;
+                });
+
+                audioPlayer.addEventListener('ended', () => {
+                    playPauseButton.innerText = "Play";
+                    clearInterval(intervalId);
+                    intervalId = null;
+                });
+            })
+            .catch(error => {
+                console.error('Error loading subtitle JSON:', error);
+            });
+    </script>
+</body>
+</html>
