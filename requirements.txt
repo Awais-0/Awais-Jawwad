@@ -1,0 +1,8 @@
+openai-whisper
+difflib
+pydub
+onnxruntime
+soundfile
+PyYAML
+gradio
+ttstokenizer
